@@ -1,0 +1,7 @@
+*.g1a
+Debug/
+INIT/
+*.sublime-*
+*.swp
+*.bat
+

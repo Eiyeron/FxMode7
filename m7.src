@@ -1,0 +1,46 @@
+    .IMPORT _fcos
+    .IMPORT _fsin
+    .IMPORT _DB
+
+	.MACRO FIX Rd
+	SHLR8 \Rd
+	SHLR4 \Rd
+	SHLL \Rd
+	.ENDM
+
+
+    .EXPORT _drawM7
+    .SECTION P, CODE, ALIGN=4
+
+    ; Draws Mode 7 layer
+    ; Arguments
+    ; R4 : settings address
+_drawM7:
+	MOV.L R4,		R15		; Saves the settings address
+
+	; Getting the angle's sine and cosine
+	MOV.L @(2,R15), R4		; get the angle and set it as an argument
+	MOV.L A_fsin,	R1
+	JSR @R1 				; get the angle's sine
+	NOP
+	MOV.L R0, R8			; store SA
+
+	MOV.L @(2,R15), R4		; get the angle and set it as an argument
+	MOV.L A_fcos,	R1
+	MOV.L R0, R9			; store CA
+
+	MOV.L #64, R2			; i = 64
+m7Iloop:
+	MOV.L R2, R10			; i -> pz
+	FIX   R10				; FIX(pz) -> pz
+	MOV.L @(3, R15), R14	; Get horizon
+	SUB.L R10, R14			; pz -= horizon
+	MOV.L R10, R11			; pz -> py
+	MOV.L @(5, R15), R14	; Get FOV
+	SUB.L R14, R11			; py -= py
+
+    RTS
+    NOP
+    A_fsin:	.DATA.L _fsin
+    A_fcos:	.DATA.L _fcos
+    .end
