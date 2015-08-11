@@ -12,7 +12,7 @@
 #include "fixed.h"
 #include "mode7.h"
 #include "key.h"
-
+#include "stdio.h"
 const fix s = FIX(8);
 const fix horizon = FIX(32);
 const fix fov = FIX(60);
@@ -58,20 +58,22 @@ char machin[] = {
 int AddIn_main(int isAppli, unsigned short OptionNum)
 {
 
+	char buffer[256]= "";
 	M7_Parameters m7p;
 	int time = 0;
 	int i,j;
 	fix mul;
 	m7p.camera_angle = 0;
+	m7p.camera_pitch = 0;
 	m7p.camera_x = 0;
 	m7p.camera_y = 0;
 	m7p.camera_z = FIX(8);
-	m7p.horizon = -16;
 	m7p.scale_x = FIX(128);
 	m7p.scale_y = FIX(64);
 	m7p.obj_scale_x = FIX(128);
-	m7p.obj_scale_y = FIX(64);
-	m7p.render_mode = FLOOR;
+	m7p.obj_scale_y = FIX(128);
+
+
 	while(KeyUp(K_EXIT)) {
 		time++;
 		if(KeyDown(K_LEFT))
@@ -90,12 +92,31 @@ int AddIn_main(int isAppli, unsigned short OptionNum)
 			m7p.camera_x -= fcos(m7p.camera_angle);
 			m7p.camera_y -= fsin(m7p.camera_angle);
 		}
+		if(KeyDown(K_7)) {
+			m7p.camera_pitch += ftofix(0.2);
+			if(m7p.camera_pitch > FIX(90))
+				m7p.camera_pitch = FIX(90);
+				if(m7p.camera_pitch < FIX(-90))
+					m7p.camera_pitch = FIX(-90);
+		}
+		if(KeyDown(K_4)) {
+			m7p.camera_pitch -= ftofix(0.2);
+		}
 		m7p.camera_angle = MOD(m7p.camera_angle, FIX(360));
 
 		ML_clear_vram();
-		mode_7(map, m7p);
-		
+		mode_7(map, &m7p);
+
+		{
+			sprintf(buffer, "angle=%d", UNFIX(m7p.camera_angle));
+			PrintMini(0, 0, buffer, MINI_OVER);
+			sprintf(buffer, "hor=%d", m7p.horizon);
+			PrintMini(0, 6, buffer, MINI_OVER);
+			sprintf(buffer, "pch=%f", fixtof(m7p.camera_pitch));
+			PrintMini(0, 12, buffer, MINI_OVER);
+		}
 		ML_display_vram();
+		Sleep(1);
 	}
 	return 1;
 }
@@ -133,4 +154,3 @@ int InitializeSystem(int isAppli, unsigned short OptionNum)
 }
 
 #pragma section
-

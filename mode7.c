@@ -1,3 +1,4 @@
+#include "limits.h"
 #include "mode7.h"
 #include "MonochromeLib.h"
 
@@ -10,7 +11,7 @@ unsigned char M7_get_tmap(unsigned char *tmap, unsigned char *sprtbl, int x, int
 }
 #endif
 
-void mode_7 (M7_TiledMap tmap, M7_Parameters params)
+void mode_7 (M7_TiledMap tmap, M7_Parameters *params)
 {
 
     // current screen position
@@ -37,45 +38,55 @@ void mode_7 (M7_TiledMap tmap, M7_Parameters params)
 	char* tile;
 
 	// Trig optimisation
-	const fix ca = fcos(params.camera_angle), sa = fsin(params.camera_angle);
+	const fix ca = fcos(params->camera_angle), sa = fsin(params->camera_angle);
+
+	// horizon calculation
+	int horiz;
+	const fix cpa = fcos(params->camera_pitch), spa = fsin(params->camera_pitch);
+	if (cpa != 0) {
+		fix h = fmul(spa, FIX(64)) - params->camera_z;
+		horiz = UNFIX(fdiv(h, cpa));
+	}
+	else    // looking straight down (w.y > 0) means horizon at -inf scanline
+    horiz= spa > 0 ? INT_MIN : INT_MAX;
+
+	params->horizon = horiz;
 
 	for (screen_y = 0; screen_y < 64; screen_y++)
 	{
 
-		if(!(screen_y + params.horizon)) continue;
-        // first calculate the distance of the line we are drawing
-		distance = fmul (params.camera_z, params.scale_y) /
-		(screen_y + params.horizon);
+		if(!(screen_y + horiz)) continue;
+    // first calculate the distance of the line we are drawing
+		distance = (fmul (params->camera_z, params->scale_y) /
+		(screen_y + horiz));
 
-		if(distance < 0 && (params.render_mode == FLOOR))
-			continue;
-		if(distance > 0 && (params.render_mode == CEIL))
+		if(distance < 0)
 			continue;
 
-        // then calculate the horizontal scale, or the distance between
-        // space points on this horizontal line
-		horizontal_scale = fdiv (distance, params.scale_x);
+    // then calculate the horizontal scale, or the distance between
+    // space points on this horizontal line
+		horizontal_scale = fdiv (distance, params->scale_x);
 
-        // calculate the dx and dy of points in space when we step
-        // through all points on this line
+    // calculate the dx and dy of points in space when we step
+    // through all points on this line
 		line_dx = fmul (-sa, horizontal_scale);
 		line_dy = fmul (ca, horizontal_scale);
 
-        // calculate the starting position
-		space_x = params.camera_x + fmul (distance, ca) - 64 * line_dx;
-		space_y = params.camera_y + fmul (distance, sa) - 64 * line_dy;
+    // calculate the starting position
+		space_x = params->camera_x + fmul (distance, ca) - 64 * line_dx;
+		space_y = params->camera_y + fmul (distance, sa) - 64 * line_dy;
 
-        // go through all points in this screen line
+    // go through all points in this screen line
 		for (screen_x = 0; screen_x < 128; screen_x++)
 		{
 			sx = UNFIX(space_x);
 			sy = UNFIX(space_y);
 			if(sx >= 0 && sy >= 0 && sx < map_width && sy < map_height) {
-	            // get a pixel from the tile and put it on the screen
+        // get a pixel from the tile and put it on the screen
 				tile = tmap.tiles + ((tmap.map[((sy>>3)&255)*tmap.width + tmap.width - 1 - ((sx>>3)&255)])<<3);
 				value = (tile[sy&mask] & (1<<(sx&mask))) != 0;
 			}
-			else 
+			else
 				value = ML_CHECKER;
 			ML_pixel(screen_x, screen_y, value);
 
